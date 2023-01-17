@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Screen Sharing Test</title>
+</head>
+<style>
+    html, body {
+        width: 400px;
+        text-align: center;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translateX(-50%) translateY(-50%);
+    }
+</style>
+<body>
+    <button id="btn-test">Test Screen Sharing</button>
+    <h3 id="result-text" style="display: none"></h3>
+</body>
+<script>
+    const button = document.querySelector('#btn-test');
+    const resultText = document.querySelector('#result-text');
+
+    button.onclick = function() {
+        invokeGetDisplayMedia(function (screen) {
+            addStreamStopListener(screen, function () {
+                location.reload();
+            });
+
+            // getDisplayMedia supported
+            resultText.innerHTML = 'Your browser supports getDisplayMedia API';
+            resultText.style.color = 'green';
+            resultText.style.display = 'block';
+        }, function (e) {
+            // found errors
+            const error = {
+                name: e.name || 'UnKnown',
+                message: e.message || 'UnKnown',
+            };
+            if (error.name === 'PermissionDeniedError') {
+                if (location.protocol !== 'https:') {
+                    error.message = 'Please use HTTPs.';
+                }
+            }
+            resultText.innerHTML = 'Unable to capture your screen due an error <br><br>' + error.name + ' : ' + error.message;
+            resultText.style.color = 'red';
+            resultText.style.display = 'block';
+        });
+    }
+
+    // getDisplayMedia not supported
+    if(!navigator.getDisplayMedia && !navigator.mediaDevices.getDisplayMedia) {
+        const error = 'Your browser doesn\'t supports getDisplayMedia API';
+        resultText.innerHTML = error;
+        resultText.style.color = 'red';
+        resultText.style.display = 'block';
+        throw new Error(error);
+    }
+
+    function invokeGetDisplayMedia(success, error) {
+        //getDisplayMedia with default videoConstraints
+        const displayMediaStreamConstraints = {
+            video: true
+        };
+
+        if(navigator.mediaDevices.getDisplayMedia) {
+            navigator.mediaDevices.getDisplayMedia(displayMediaStreamConstraints).then(success).catch(error);
+        } else {
+            navigator.getDisplayMedia(displayMediaStreamConstraints).then(success).catch(error);
+        }
+    }
+
+    function addStreamStopListener(stream, callback) {
+        stream.addEventListener('ended', function() {
+            callback();
+            callback = function() {};
+        }, false);
+        stream.addEventListener('inactive', function() {
+            callback();
+            callback = function() {};
+        }, false);
+        stream.getTracks().forEach(function(track) {
+            // stop sharing
+            // track.stop();
+            
+            track.addEventListener('ended', function() {
+                callback();
+                callback = function() {};
+            }, false);
+            track.addEventListener('inactive', function() {
+                callback();
+                callback = function() {};
+            }, false);
+        });
+    }
+</script>
+</html>
